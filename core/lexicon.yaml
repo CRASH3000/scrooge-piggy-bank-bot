@@ -1,0 +1,89 @@
+screens:
+  start_onboarding:
+    text: |
+      Кря! Я Скрудж Макдак, и я знаю цену каждому центу. Чтобы мы начали строить твою финансовую империю, запомни правила:
+
+      1. Пиши число (например, 1000 или +1000) - это монетки в хранилище.
+      2. Пиши -число (например, -500) - это траты на племянников или бизнес.
+      3. Выбирай категорию на кнопках, и всё — данные в сейфе!
+
+      Введи свой стартовый капитал, и мы начнем вместе заполнять твое личное хранилище
+    image_id: "file_id_scrooge_art"
+
+  main_vault:
+    text: |
+      {achievement}
+
+      Сегодня копим или тратим?
+
+      💰 Текущий баланс: {balance} 
+
+      {quote}
+
+  income_category:
+    text: "Сумма: {amount} ₽. Откуда дровишки? Выбери категорию:"
+    buttons:
+      - text: "💼 Зарплата"
+        callback_data: "income_salary"
+      - text: "🚀 Бизнес"
+        callback_data: "income_business_freelance"
+      - text: "🎁 Подарки"
+        callback_data: "income_gifts"
+      - text: "📈 Проценты"
+        callback_data: "income_interest"
+      - text: "🔄 Возврат"
+        callback_data: "income_refund"
+    cancel_button:
+      text: "❌ Отмена"
+      callback_data: "cancel_transaction"
+
+  expense_category:
+    text: "Сумма: {amount} ₽. Куда улетели монетки? Выбери категорию:"
+    buttons:
+      - text: "🛒 Продукты"
+        callback_data: "expense_products"
+      - text: "🍔 Кафе"
+        callback_data: "expense_cafe"
+      - text: "🏠 Жилье"
+        callback_data: "expense_housing"
+      - text: "🚗 Транспорт"
+        callback_data: "expense_transport"
+      - text: "💊 Здоровье"
+        callback_data: "expense_health"
+      - text: "👕 Одежда"
+        callback_data: "expense_clothes"
+      - text: "📱 Подписки"
+        callback_data: "expense_subscriptions"
+      - text: "🎉 Развлечения"
+        callback_data: "expense_entertainment"
+      - text: "📚 Хобби"
+        callback_data: "expense_hobby"
+      - text: "💸 Долги"
+        callback_data: "expense_debts"
+      - text: "🛍 Прочее"
+        callback_data: "expense_other"
+
+    cancel_button:
+      text: "❌ Отмена"
+      callback_data: "cancel_transaction"
+
+  success:
+    text: "✅ Дзинь! {amount} ₽ успешно записано в {category}. 
+    Гроссбух обновлен! {easter_egg}"
+
+  validation_error:
+    text: "Кря! Я понимаю только язык цифр. Напиши сумму (только цифры и знаки + или -). 
+    Попробуй еще раз!"
+
+  limit_error_income:
+    text: "Кря! Мое хранилище не резиновое! 
+    Введи сумму до 1 миллиарда."
+
+  limit_error_expense:
+    text: "Кря! Ты хочешь пустить нас по миру?! 
+    Мое сердце не выдержит таких трат. Введи расход до 1 миллиарда!"
+
+easter_eggs:
+  hobby_education: "Инвестиция в себя - это лучшее вложение средств!"
+  clothes: "О, кто-то решил обновить гардероб! Встречают по одежке, а провожают по уму. Главное не переусердствуй."
+  business: "Деньги должны работать! Кря! Отличная сделка."
