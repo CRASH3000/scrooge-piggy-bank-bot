@@ -5,6 +5,7 @@ import logging
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand
 
 from core.bot_content_manager import BotContentManager
 from handlers.user_handlers import user_router
@@ -25,7 +26,21 @@ class ScroogeBotApplication:
 
         self.dispatcher.include_router(user_router)
 
+    async def setup_bot_commands(self):
+
+        bot_commands = [
+            BotCommand(command="start", description="Запустить бота"),
+            BotCommand(command="vault", description="Мое хранилище"),
+            BotCommand(command="balance", description="Отчет за месяц"),
+            BotCommand(command="export", description="Выгрузить Гроссбух"),
+            BotCommand(command="help", description="Правила"),
+            BotCommand(command="reset_me", description="Сбросить мои данные"),
+        ]
+
+        await self.bot.set_my_commands(bot_commands)
+
     async def start_listening_for_messages(self):
+        await self.setup_bot_commands()
 
         logging.info("Бот 'Копилка Скруджа' запущен и готов к работе!")
         await self.dispatcher.start_polling(self.bot)

@@ -20,12 +20,16 @@ class BotContentManager:
             logging.error(f"Ошибка чтения YAML структуры: {error}")
             return {}
 
-    def get_screen_text(self, screen_name: str, **format_values) -> str:
+    def get_screen_data(self, screen_name: str) -> dict:
         try:
-            text_template = self.lexicon_data["screens"][screen_name]["text"]
+            return self.lexicon_data["screens"][screen_name]
         except KeyError:
-            logging.warning(f"Текст для экрана '{screen_name}' не найден в словаре.")
-            return "Текст временно недоступен."
+            logging.warning(f"Экран '{screen_name}' не найден в словаре.")
+            return {}
+
+    def get_screen_text(self, screen_name: str, **format_values) -> str:
+        screen_data = self.get_screen_data(screen_name)
+        text_template = screen_data.get("text", "Текст временно недоступен.")
 
         try:
             return text_template.format(**format_values)
@@ -34,3 +38,15 @@ class BotContentManager:
                 f"Для экрана '{screen_name}' не хватило значения для шаблона: {error}"
             )
             return text_template
+
+    def get_screen_buttons(self, screen_name: str) -> list[dict]:
+        screen_data = self.get_screen_data(screen_name)
+        return screen_data.get("buttons", [])
+
+    def get_cancel_button(self, screen_name: str) -> dict | None:
+        screen_data = self.get_screen_data(screen_name)
+        return screen_data.get("cancel_button")
+
+    def get_easter_egg_text(self, easter_egg_key: str) -> str:
+        easter_eggs = self.lexicon_data.get("easter_eggs", {})
+        return easter_eggs.get(easter_egg_key, "")
