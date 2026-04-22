@@ -1,5 +1,6 @@
 import yaml
 import logging
+import random
 
 
 class BotContentManager:
@@ -50,3 +51,22 @@ class BotContentManager:
     def get_easter_egg_text(self, easter_egg_key: str) -> str:
         easter_eggs = self.lexicon_data.get("easter_eggs", {})
         return easter_eggs.get(easter_egg_key, "")
+
+    def get_default_first_vault_screen_quote(self) -> str:
+        vault_screen_quotes = self.lexicon_data.get("vault_screen_quotes", {})
+        return vault_screen_quotes.get(
+            "default_first_quote",
+            "Кря! Главное держать хранилище под контролем."
+        )
+
+    def get_random_financial_literacy_quote_for_vault_screen(self) -> str:
+        vault_screen_quotes = self.lexicon_data.get("vault_screen_quotes", {})
+        random_financial_literacy_quotes = vault_screen_quotes.get(
+            "random_financial_literacy_quotes",
+            []
+        )
+
+        if not random_financial_literacy_quotes:
+            return self.get_default_first_vault_screen_quote()
+
+        return random.choice(random_financial_literacy_quotes)

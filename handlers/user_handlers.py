@@ -18,6 +18,9 @@ from services.transaction_service import TransactionService
 from services.monthly_stats_service import MonthlyStatsService
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from services.export_service import ExportService
+from services.vault_balance_level_and_rank_service import VaultBalanceLevelAndRankService
+from datetime import datetime
+from services.monthly_spending_category_achievement_service import MonthlySpendingCategoryAchievementService
 
 user_router = Router()
 
@@ -38,11 +41,22 @@ async def send_main_vault_screen(
 
         user_balance = transaction_service.get_user_balance(telegram_id=telegram_user_id)
 
+        vault_level_rank_and_image_data = (
+            VaultBalanceLevelAndRankService.get_vault_level_rank_and_image_key_by_balance(
+                balance=user_balance
+            )
+        )
+
+        random_vault_screen_quote = (
+            content_manager.get_random_financial_literacy_quote_for_vault_screen()
+        )
+
         main_vault_text = content_manager.get_screen_text(
             screen_name="main_vault",
-            achievement="",
             balance=format_amount_for_user(user_balance),
-            quote="Кря! Главное держать хранилище под контролем."
+            vault_level_number=vault_level_rank_and_image_data["vault_level_number"],
+            vault_rank_name=vault_level_rank_and_image_data["vault_rank_name"],
+            quote=random_vault_screen_quote
         )
 
         await target_message.answer(text=main_vault_text)
@@ -80,6 +94,11 @@ async def process_balance_command(
         monthly_stats_service = MonthlyStatsService(
             transaction_repository=transaction_repository
         )
+        monthly_spending_category_achievement_service = (
+            MonthlySpendingCategoryAchievementService(
+                transaction_repository=transaction_repository
+            )
+        )
 
         telegram_user_id = message.from_user.id
 
@@ -91,8 +110,19 @@ async def process_balance_command(
             telegram_id=telegram_user_id
         )
 
+        current_datetime = datetime.now()
+
+        monthly_achievement_text = (
+            monthly_spending_category_achievement_service.get_monthly_achievement_text(
+                telegram_id=telegram_user_id,
+                year=current_datetime.year,
+                month=current_datetime.month
+            )
+        )
+
         monthly_balance_text = content_manager.get_screen_text(
             screen_name="monthly_balance",
+            achievement=monthly_achievement_text,
             income_for_month=format_amount_for_user(monthly_stats["income_for_month"]),
             expense_for_month=format_amount_for_user(monthly_stats["expense_for_month"]),
             current_balance=format_amount_for_user(current_balance),
@@ -308,7 +338,7 @@ async def process_initial_capital_input(
             screen_name="main_vault",
             achievement="",
             balance=format_amount_for_user(user_balance),
-            quote="Кря! Начало положено — теперь главное не растратить всё сразу."
+            quote=content_manager.get_default_first_vault_screen_quote()
         )
 
         await message.answer(text=main_vault_text)
