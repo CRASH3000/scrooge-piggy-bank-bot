@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -17,7 +18,6 @@ class TransactionRepository:
         category: str,
         transaction_type: str
     ) -> Transaction:
-
         new_transaction = Transaction(
             telegram_id=telegram_id,
             amount=amount,
@@ -30,9 +30,47 @@ class TransactionRepository:
         return new_transaction
 
     def get_all_user_transactions(self, telegram_id: int) -> list[Transaction]:
-
         return (
             self.session.query(Transaction)
             .filter(Transaction.telegram_id == telegram_id)
             .all()
         )
+
+    def get_all_user_transactions_ordered_by_timestamp(
+        self,
+        telegram_id: int
+    ) -> list[Transaction]:
+        return (
+            self.session.query(Transaction)
+            .filter(Transaction.telegram_id == telegram_id)
+            .order_by(Transaction.timestamp.asc())
+            .all()
+        )
+
+    def get_user_transactions_for_month(
+        self,
+        telegram_id: int,
+        year: int,
+        month: int
+    ) -> list[Transaction]:
+        all_user_transactions = self.get_all_user_transactions(telegram_id=telegram_id)
+
+        filtered_transactions = []
+
+        for transaction in all_user_transactions:
+            if transaction.timestamp.year == year and transaction.timestamp.month == month:
+                filtered_transactions.append(transaction)
+
+        return filtered_transactions
+
+    def user_has_initial_capital_transaction(self, telegram_id: int) -> bool:
+        initial_capital_transaction = (
+            self.session.query(Transaction)
+            .filter(
+                Transaction.telegram_id == telegram_id,
+                Transaction.category == "initial_capital"
+            )
+            .first()
+        )
+
+        return initial_capital_transaction is not None

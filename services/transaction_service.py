@@ -15,7 +15,6 @@ class TransactionService:
         category: str,
         transaction_type: str
     ):
-
         return self.transaction_repository.create_transaction(
             telegram_id=telegram_id,
             amount=amount,
@@ -24,8 +23,9 @@ class TransactionService:
         )
 
     def get_user_balance(self, telegram_id: int) -> Decimal:
-
-        all_transactions = self.transaction_repository.get_all_user_transactions(telegram_id)
+        all_transactions = self.transaction_repository.get_all_user_transactions(
+            telegram_id=telegram_id
+        )
 
         total_balance = Decimal("0.00")
 
@@ -33,3 +33,8 @@ class TransactionService:
             total_balance += Decimal(transaction.amount)
 
         return total_balance
+
+    def user_has_initial_capital(self, telegram_id: int) -> bool:
+        return self.transaction_repository.user_has_initial_capital_transaction(
+            telegram_id=telegram_id
+        )

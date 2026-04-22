@@ -15,14 +15,14 @@ from repositories.user_repository import UserRepository
 from repositories.transaction_repository import TransactionRepository
 from services.user_service import UserService
 from services.transaction_service import TransactionService
+from services.monthly_stats_service import MonthlyStatsService
+from aiogram.types import Message, CallbackQuery, FSInputFile
+from services.export_service import ExportService
 
 user_router = Router()
 
 
 def format_amount_for_user(amount: Decimal) -> str:
-    """
-    Форматируем сумму для вывода пользователю.
-    """
     return f"{amount} ₽"
 
 async def send_main_vault_screen(
@@ -30,9 +30,6 @@ async def send_main_vault_screen(
     telegram_user_id: int,
     content_manager: BotContentManager
 ):
-    """
-    Показывает главный экран с актуальным балансом из БД.
-    """
     session = DatabaseSessionManager.create_session()
 
     try:
@@ -49,6 +46,89 @@ async def send_main_vault_screen(
         )
 
         await target_message.answer(text=main_vault_text)
+
+    finally:
+        session.close()
+
+@user_router.message(Command("help"))
+async def process_help_command(
+    message: Message,
+    state: FSMContext,
+    content_manager: BotContentManager
+):
+    await state.clear()
+
+    help_text = content_manager.get_screen_text(screen_name="help_rules")
+    await message.answer(text=help_text)
+
+@user_router.message(Command("balance"))
+async def process_balance_command(
+    message: Message,
+    state: FSMContext,
+    content_manager: BotContentManager
+):
+    await state.clear()
+
+    session = DatabaseSessionManager.create_session()
+
+    try:
+        transaction_repository = TransactionRepository(session=session)
+
+        transaction_service = TransactionService(
+            transaction_repository=transaction_repository
+        )
+        monthly_stats_service = MonthlyStatsService(
+            transaction_repository=transaction_repository
+        )
+
+        telegram_user_id = message.from_user.id
+
+        current_balance = transaction_service.get_user_balance(
+            telegram_id=telegram_user_id
+        )
+
+        monthly_stats = monthly_stats_service.get_current_month_stats(
+            telegram_id=telegram_user_id
+        )
+
+        monthly_balance_text = content_manager.get_screen_text(
+            screen_name="monthly_balance",
+            income_for_month=format_amount_for_user(monthly_stats["income_for_month"]),
+            expense_for_month=format_amount_for_user(monthly_stats["expense_for_month"]),
+            current_balance=format_amount_for_user(current_balance),
+        )
+
+        await message.answer(text=monthly_balance_text)
+
+    finally:
+        session.close()
+
+@user_router.message(Command("export"))
+async def process_export_command(
+    message: Message,
+    state: FSMContext,
+    content_manager: BotContentManager
+):
+    await state.clear()
+
+    session = DatabaseSessionManager.create_session()
+
+    try:
+        transaction_repository = TransactionRepository(session=session)
+        export_service = ExportService(transaction_repository=transaction_repository)
+
+        telegram_user_id = message.from_user.id
+
+        csv_file_path = export_service.generate_user_csv_export(
+            telegram_id=telegram_user_id
+        )
+
+        export_ready_text = content_manager.get_screen_text(screen_name="export_ready")
+
+        await message.answer(text=export_ready_text)
+
+        csv_file = FSInputFile(csv_file_path)
+        await message.answer_document(document=csv_file)
 
     finally:
         session.close()
@@ -110,10 +190,37 @@ async def process_start_command(
     state: FSMContext,
     content_manager: BotContentManager
 ):
-    await state.set_state(UserOnboardingStates.waiting_for_initial_capital)
+    await state.clear()
 
-    welcome_text = content_manager.get_screen_text(screen_name="start_onboarding")
-    await message.answer(text=welcome_text)
+    session = DatabaseSessionManager.create_session()
+
+    try:
+        transaction_repository = TransactionRepository(session=session)
+        transaction_service = TransactionService(
+            transaction_repository=transaction_repository
+        )
+
+        telegram_user_id = message.from_user.id
+
+        user_has_initial_capital = transaction_service.user_has_initial_capital(
+            telegram_id=telegram_user_id
+        )
+
+        if user_has_initial_capital:
+            await send_main_vault_screen(
+                target_message=message,
+                telegram_user_id=telegram_user_id,
+                content_manager=content_manager
+            )
+            return
+
+        await state.set_state(UserOnboardingStates.waiting_for_initial_capital)
+
+        welcome_text = content_manager.get_screen_text(screen_name="start_onboarding")
+        await message.answer(text=welcome_text)
+
+    finally:
+        session.close()
 
 
 @user_router.message(Command("reset_me"))

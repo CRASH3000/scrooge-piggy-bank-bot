@@ -37,3 +37,6 @@ build/
 *.sqlite
 *.sqlite3
 data/
+
+# Local files
+exports/
