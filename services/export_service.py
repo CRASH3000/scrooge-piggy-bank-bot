@@ -6,9 +6,15 @@ from repositories.transaction_repository import TransactionRepository
 
 
 class ExportService:
-
     def __init__(self, transaction_repository: TransactionRepository):
         self.transaction_repository = transaction_repository
+
+    def get_human_readable_category_name_for_csv(self, category_name: str) -> str:
+        category_names_for_csv = {
+            "initial_capital": "Стартовый капитал",
+        }
+
+        return category_names_for_csv.get(category_name, category_name)
 
     def generate_user_csv_export(self, telegram_id: int) -> str:
         all_transactions = (
@@ -45,12 +51,18 @@ class ExportService:
                 formatted_type = "Доход" if transaction.type == "income" else "Расход"
                 formatted_amount = f"{Decimal(transaction.amount)} ₽"
 
+                human_readable_category_name = (
+                    self.get_human_readable_category_name_for_csv(
+                        category_name=transaction.category
+                    )
+                )
+
                 csv_writer.writerow(
                     [
                         formatted_timestamp,
                         formatted_type,
                         formatted_amount,
-                        transaction.category,
+                        human_readable_category_name,
                     ]
                 )
 

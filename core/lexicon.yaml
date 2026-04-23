@@ -8,7 +8,7 @@ screens:
       3. Выбирай категорию на кнопках, и всё — данные в сейфе!
 
       Введи свой стартовый капитал, и мы начнем вместе заполнять твое личное хранилище
-    image_id: "file_id_scrooge_art"
+    image_path: "media/scrooge_onboarding.jpg"
 
   main_vault:
     text: |
@@ -27,8 +27,10 @@ screens:
       Заработано: {income_for_month}
       Потрачено: {expense_for_month}
       Общий баланс: {current_balance}
-      
+
       {achievement}
+
+    image_path: "media/scrooge_monthly_balance.jpg"
 
   help_rules:
     text: |
@@ -138,6 +140,13 @@ vault_screen_quotes:
     - "На каждую крупную цель нужен свой запас. Иначе мечты так и останутся разговорами у пустого сейфа."
     - "Сбережения - это не жадность, а защита твоей свободы и спокойствия."
     - "Капитал строится не чудом, а порядком: учитывать, откладывать, не транжирить и повторять это снова и снова."
+
+vault_screen_image_paths:
+  IMG_VAULT_EMPTY: "media/vault_empty.jpg"
+  IMG_VAULT_LVL1: "media/vault_level_1.jpg"
+  IMG_VAULT_LVL2: "media/vault_level_2.jpg"
+  IMG_VAULT_LVL3: "media/vault_level_3.jpg"
+  IMG_VAULT_LVL4: "media/vault_level_4.jpg"
 
 easter_eggs:
   hobby_education: "Инвестиция в себя - это лучшее вложение средств!"
