@@ -72,9 +72,6 @@ class BotContentManager:
         return random.choice(random_financial_literacy_quotes)
 
     def get_vault_screen_image_path_by_image_key(self, vault_image_key: str) -> str:
-        """
-        Возвращает путь к локальной картинке хранилища по ключу изображения.
-        """
         vault_screen_image_paths = self.lexicon_data.get(
             "vault_screen_image_paths",
             {}
@@ -83,9 +80,5 @@ class BotContentManager:
         return vault_screen_image_paths.get(vault_image_key, "")
 
     def get_screen_image_path(self, screen_name: str) -> str:
-        """
-        Возвращает путь к локальной картинке конкретного экрана.
-        Например, для онбординга или месячного отчета.
-        """
         screen_data = self.get_screen_data(screen_name)
         return screen_data.get("image_path", "")

@@ -5,7 +5,13 @@ from decimal import Decimal
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery, FSInputFile
+from aiogram.types import (
+    Message,
+    CallbackQuery,
+    FSInputFile,
+    BotCommand,
+    BotCommandScopeChat,
+)
 
 from core.bot_content_manager import BotContentManager
 from database.database_session_manager import DatabaseSessionManager
@@ -19,6 +25,7 @@ from services.monthly_spending_category_achievement_service import (
     MonthlySpendingCategoryAchievementService,
 )
 from services.monthly_stats_service import MonthlyStatsService
+from services.transaction_reaction_service import TransactionReactionService
 from services.transaction_service import TransactionService
 from services.transaction_validator import TransactionValidator
 from services.user_service import UserService
@@ -53,6 +60,7 @@ def get_category_name_from_callback(callback_data: str) -> str:
         "expense_subscriptions": "Подписки",
         "expense_entertainment": "Развлечения",
         "expense_hobby": "Хобби",
+        "expense_education": "Учеба",
         "expense_debts": "Долги",
         "expense_other": "Прочее",
     }
@@ -60,14 +68,34 @@ def get_category_name_from_callback(callback_data: str) -> str:
 
 
 def get_easter_egg_key(callback_data: str, amount: Decimal) -> str | None:
-    if callback_data == "expense_hobby":
-        return "hobby_education"
+    absolute_amount = abs(amount)
 
-    if callback_data == "expense_clothes":
+    if callback_data == "expense_education" and absolute_amount >= Decimal("500"):
+        return "education"
+
+    if callback_data == "expense_clothes" and absolute_amount >= Decimal("3000"):
         return "clothes"
 
-    if callback_data == "income_business_freelance" and amount > 0:
+    if callback_data == "income_business_freelance" and amount >= Decimal("5000"):
         return "business"
+
+    if callback_data == "expense_cafe" and absolute_amount >= Decimal("1500"):
+        return "cafe"
+
+    if callback_data == "expense_entertainment" and absolute_amount >= Decimal("2500"):
+        return "entertainment"
+
+    if callback_data == "expense_subscriptions" and absolute_amount >= Decimal("500"):
+        return "subscriptions"
+
+    if callback_data == "expense_debts" and absolute_amount >= Decimal("1000"):
+        return "debts"
+
+    if callback_data == "income_interest" and amount > 0:
+        return "interest"
+
+    if callback_data == "income_gifts" and amount >= Decimal("1000"):
+        return "gifts"
 
     return None
 
@@ -79,6 +107,32 @@ def build_local_photo_input_file_if_path_exists(
         return FSInputFile(local_image_path)
 
     return None
+
+
+async def setup_commands_for_new_user_in_current_chat(message: Message):
+    new_user_bot_commands = [
+        BotCommand(command="start", description="Начать работу"),
+    ]
+
+    await message.bot.set_my_commands(
+        commands=new_user_bot_commands,
+        scope=BotCommandScopeChat(chat_id=message.chat.id),
+    )
+
+
+async def setup_commands_for_registered_user_in_current_chat(message: Message):
+    registered_user_bot_commands = [
+        BotCommand(command="vault", description="Мое хранилище"),
+        BotCommand(command="balance", description="Отчет за месяц"),
+        BotCommand(command="export", description="Выгрузить Гроссбух"),
+        BotCommand(command="help", description="Правила"),
+        BotCommand(command="reset_me", description="Сбросить мои данные"),
+    ]
+
+    await message.bot.set_my_commands(
+        commands=registered_user_bot_commands,
+        scope=BotCommandScopeChat(chat_id=message.chat.id),
+    )
 
 
 async def send_start_onboarding_screen(
@@ -98,7 +152,7 @@ async def send_start_onboarding_screen(
     if onboarding_photo is not None:
         await target_message.answer_photo(
             photo=onboarding_photo,
-            caption=onboarding_text
+            caption=onboarding_text,
         )
     else:
         await target_message.answer(text=onboarding_text)
@@ -142,7 +196,7 @@ async def send_main_vault_screen(
             balance=format_amount_for_user(user_balance),
             vault_level_number=vault_level_rank_and_image_data["vault_level_number"],
             vault_rank_name=vault_level_rank_and_image_data["vault_rank_name"],
-            quote=vault_screen_quote
+            quote=vault_screen_quote,
         )
 
         vault_screen_image_path = (
@@ -157,7 +211,7 @@ async def send_main_vault_screen(
         if vault_screen_photo is not None:
             await target_message.answer_photo(
                 photo=vault_screen_photo,
-                caption=main_vault_text
+                caption=main_vault_text,
             )
         else:
             await target_message.answer(text=main_vault_text)
@@ -202,7 +256,7 @@ async def send_monthly_balance_screen(
             monthly_spending_category_achievement_service.get_monthly_achievement_text(
                 telegram_id=telegram_user_id,
                 year=current_datetime.year,
-                month=current_datetime.month
+                month=current_datetime.month,
             )
         )
 
@@ -228,7 +282,7 @@ async def send_monthly_balance_screen(
         if monthly_balance_photo is not None:
             await target_message.answer_photo(
                 photo=monthly_balance_photo,
-                caption=monthly_balance_text
+                caption=monthly_balance_text,
             )
         else:
             await target_message.answer(text=monthly_balance_text)
@@ -254,7 +308,7 @@ async def start_new_transaction_category_selection(
     await state.update_data(
         pending_amount=str(amount),
         pending_transaction_type=transaction_type,
-        user_message_id=message.message_id
+        user_message_id=message.message_id,
     )
 
     keyboard_builder = TransactionCategoryKeyboardBuilder(content_manager)
@@ -264,12 +318,12 @@ async def start_new_transaction_category_selection(
 
     category_text = content_manager.get_screen_text(
         screen_name=screen_name,
-        amount=format_amount_for_user(amount)
+        amount=format_amount_for_user(amount),
     )
 
     bot_category_message = await message.answer(
         text=category_text,
-        reply_markup=category_keyboard
+        reply_markup=category_keyboard,
     )
 
     await state.update_data(
@@ -292,7 +346,7 @@ async def delete_previous_transaction_selection_messages_if_they_exist(
         try:
             await message.bot.delete_message(
                 chat_id=message.chat.id,
-                message_id=previous_active_category_selection_bot_message_id
+                message_id=previous_active_category_selection_bot_message_id,
             )
         except Exception:
             pass
@@ -301,10 +355,45 @@ async def delete_previous_transaction_selection_messages_if_they_exist(
         try:
             await message.bot.delete_message(
                 chat_id=message.chat.id,
-                message_id=previous_user_message_id
+                message_id=previous_user_message_id,
             )
         except Exception:
             pass
+
+
+async def ensure_user_completed_onboarding_before_registered_command(
+    message: Message,
+    state: FSMContext,
+    content_manager: BotContentManager,
+) -> bool:
+    session = DatabaseSessionManager.create_session()
+
+    try:
+        transaction_repository = TransactionRepository(session=session)
+        transaction_service = TransactionService(
+            transaction_repository=transaction_repository
+        )
+
+        user_has_initial_capital = transaction_service.user_has_initial_capital(
+            telegram_id=message.from_user.id
+        )
+
+        if user_has_initial_capital:
+            return True
+
+        await setup_commands_for_new_user_in_current_chat(message)
+        await state.set_state(UserOnboardingStates.waiting_for_initial_capital)
+
+        await send_start_onboarding_screen(
+            target_message=message,
+            content_manager=content_manager,
+        )
+
+        return False
+
+    finally:
+        session.close()
+
 
 @user_router.message(CommandStart())
 async def process_start_command(
@@ -329,18 +418,22 @@ async def process_start_command(
         )
 
         if user_has_initial_capital:
+            await setup_commands_for_registered_user_in_current_chat(message)
+
             await send_main_vault_screen(
                 target_message=message,
                 telegram_user_id=telegram_user_id,
-                content_manager=content_manager
+                content_manager=content_manager,
             )
             return
+
+        await setup_commands_for_new_user_in_current_chat(message)
 
         await state.set_state(UserOnboardingStates.waiting_for_initial_capital)
 
         await send_start_onboarding_screen(
             target_message=message,
-            content_manager=content_manager
+            content_manager=content_manager,
         )
 
     finally:
@@ -355,10 +448,23 @@ async def process_vault_command(
 ):
     await state.clear()
 
+    user_completed_onboarding = (
+        await ensure_user_completed_onboarding_before_registered_command(
+            message=message,
+            state=state,
+            content_manager=content_manager,
+        )
+    )
+
+    if not user_completed_onboarding:
+        return
+
+    await setup_commands_for_registered_user_in_current_chat(message)
+
     await send_main_vault_screen(
         target_message=message,
         telegram_user_id=message.from_user.id,
-        content_manager=content_manager
+        content_manager=content_manager,
     )
 
 
@@ -370,10 +476,23 @@ async def process_balance_command(
 ):
     await state.clear()
 
+    user_completed_onboarding = (
+        await ensure_user_completed_onboarding_before_registered_command(
+            message=message,
+            state=state,
+            content_manager=content_manager,
+        )
+    )
+
+    if not user_completed_onboarding:
+        return
+
+    await setup_commands_for_registered_user_in_current_chat(message)
+
     await send_monthly_balance_screen(
         target_message=message,
         telegram_user_id=message.from_user.id,
-        content_manager=content_manager
+        content_manager=content_manager,
     )
 
 
@@ -384,6 +503,19 @@ async def process_export_command(
     content_manager: BotContentManager,
 ):
     await state.clear()
+
+    user_completed_onboarding = (
+        await ensure_user_completed_onboarding_before_registered_command(
+            message=message,
+            state=state,
+            content_manager=content_manager,
+        )
+    )
+
+    if not user_completed_onboarding:
+        return
+
+    await setup_commands_for_registered_user_in_current_chat(message)
 
     session = DatabaseSessionManager.create_session()
 
@@ -418,6 +550,19 @@ async def process_help_command(
 ):
     await state.clear()
 
+    user_completed_onboarding = (
+        await ensure_user_completed_onboarding_before_registered_command(
+            message=message,
+            state=state,
+            content_manager=content_manager,
+        )
+    )
+
+    if not user_completed_onboarding:
+        return
+
+    await setup_commands_for_registered_user_in_current_chat(message)
+
     help_text = content_manager.get_screen_text(screen_name="help_rules")
     await message.answer(text=help_text)
 
@@ -428,6 +573,19 @@ async def process_reset_me_command(
     state: FSMContext,
     content_manager: BotContentManager,
 ):
+    await state.clear()
+
+    user_completed_onboarding = (
+        await ensure_user_completed_onboarding_before_registered_command(
+            message=message,
+            state=state,
+            content_manager=content_manager,
+        )
+    )
+
+    if not user_completed_onboarding:
+        return
+
     session = DatabaseSessionManager.create_session()
 
     try:
@@ -440,9 +598,9 @@ async def process_reset_me_command(
             telegram_id=telegram_user.id
         )
 
-        await state.clear()
-
         if was_deleted:
+            await setup_commands_for_new_user_in_current_chat(message)
+
             success_text = content_manager.get_screen_text(
                 screen_name="reset_success"
             )
@@ -455,6 +613,7 @@ async def process_reset_me_command(
 
     finally:
         session.close()
+
 
 @user_router.message(
     UserOnboardingStates.waiting_for_initial_capital,
@@ -496,15 +655,17 @@ async def process_initial_capital_input(
 
         user_service.create_or_update_user(
             telegram_id=telegram_user.id,
-            username=telegram_user.username
+            username=telegram_user.username,
         )
 
         transaction_service.add_transaction(
             telegram_id=telegram_user.id,
             amount=amount,
             category="initial_capital",
-            transaction_type="income"
+            transaction_type="income",
         )
+
+        await setup_commands_for_registered_user_in_current_chat(message)
 
         await state.clear()
 
@@ -512,7 +673,7 @@ async def process_initial_capital_input(
             target_message=message,
             telegram_user_id=telegram_user.id,
             content_manager=content_manager,
-            use_default_first_quote=True
+            use_default_first_quote=True,
         )
 
     finally:
@@ -538,7 +699,7 @@ async def process_transaction_input(
         message=message,
         state=state,
         content_manager=content_manager,
-        amount=amount
+        amount=amount,
     )
 
 
@@ -553,7 +714,7 @@ async def process_transaction_input_while_category_selection_is_active(
 ):
     await delete_previous_transaction_selection_messages_if_they_exist(
         message=message,
-        state=state
+        state=state,
     )
 
     is_valid, amount, error_key = TransactionValidator.validate_amount(
@@ -569,8 +730,9 @@ async def process_transaction_input_while_category_selection_is_active(
         message=message,
         state=state,
         content_manager=content_manager,
-        amount=amount
+        amount=amount,
     )
+
 
 @user_router.callback_query(
     UserTransactionStates.waiting_for_category_selection,
@@ -594,7 +756,7 @@ async def process_cancel_transaction(
         try:
             await callback.bot.delete_message(
                 chat_id=callback.message.chat.id,
-                message_id=user_message_id
+                message_id=user_message_id,
             )
         except Exception:
             pass
@@ -634,6 +796,9 @@ async def process_category_selection(
         transaction_service = TransactionService(
             transaction_repository=transaction_repository
         )
+        transaction_reaction_service = TransactionReactionService(
+            transaction_repository=transaction_repository
+        )
 
         telegram_user = callback.from_user
 
@@ -641,14 +806,24 @@ async def process_category_selection(
             telegram_id=telegram_user.id,
             amount=amount,
             category=category_name,
-            transaction_type=pending_transaction_type
+            transaction_type=pending_transaction_type,
         )
 
         easter_egg_text = ""
+
         easter_egg_key = get_easter_egg_key(
             callback_data=callback_data,
-            amount=amount
+            amount=amount,
         )
+
+        if easter_egg_key is None:
+            easter_egg_key = (
+                transaction_reaction_service.get_smart_reaction_key_for_current_transaction(
+                    telegram_id=telegram_user.id,
+                    current_transaction_category_name=category_name,
+                    current_transaction_type=pending_transaction_type,
+                )
+            )
 
         if easter_egg_key is not None:
             easter_egg_text = content_manager.get_easter_egg_text(
@@ -659,7 +834,7 @@ async def process_category_selection(
             screen_name="success",
             amount=format_amount_for_user(amount),
             category=category_name,
-            easter_egg=easter_egg_text
+            easter_egg=easter_egg_text,
         )
 
         await callback.message.edit_text(text=success_text)

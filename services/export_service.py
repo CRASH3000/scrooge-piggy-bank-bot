@@ -1,5 +1,6 @@
 import csv
 import os
+from datetime import datetime
 from decimal import Decimal
 
 from repositories.transaction_repository import TransactionRepository
@@ -25,7 +26,8 @@ class ExportService:
 
         os.makedirs("exports", exist_ok=True)
 
-        file_path = f"exports/grossbuch_{telegram_id}.csv"
+        export_created_at_for_file_name = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        file_path = f"exports/Гроссбух_{export_created_at_for_file_name}.csv"
 
         total_balance = Decimal("0.00")
         initial_capital = Decimal("0.00")
@@ -38,18 +40,16 @@ class ExportService:
                 initial_capital += transaction_amount
 
         with open(file_path, "w", encoding="utf-8-sig", newline="") as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter=";")
+            csv_writer = csv.writer(csv_file, delimiter=",")
 
-            csv_writer.writerow(
-                [f"Отчет пользователя {telegram_id} за период: за все время"]
-            )
-            csv_writer.writerow([f"Стартовый капитал: {initial_capital} ₽"])
-            csv_writer.writerow(["Дата и Время", "Тип", "Сумма", "Категория"])
+            csv_writer.writerow([f"Стартовый капитал: {initial_capital:.2f} ₽"])
+            csv_writer.writerow([])
+
+            csv_writer.writerow(["Дата и время", "Сумма", "Категория"])
 
             for transaction in all_transactions:
                 formatted_timestamp = transaction.timestamp.strftime("%d.%m.%Y %H:%M")
-                formatted_type = "Доход" if transaction.type == "income" else "Расход"
-                formatted_amount = f"{Decimal(transaction.amount)} ₽"
+                formatted_amount = f"{Decimal(transaction.amount):.2f} ₽"
 
                 human_readable_category_name = (
                     self.get_human_readable_category_name_for_csv(
@@ -60,13 +60,12 @@ class ExportService:
                 csv_writer.writerow(
                     [
                         formatted_timestamp,
-                        formatted_type,
                         formatted_amount,
                         human_readable_category_name,
                     ]
                 )
 
             csv_writer.writerow([])
-            csv_writer.writerow([f"Итоговый баланс в хранилище: {total_balance} ₽"])
+            csv_writer.writerow([f"Итоговый баланс: {total_balance:.2f} ₽"])
 
         return file_path
