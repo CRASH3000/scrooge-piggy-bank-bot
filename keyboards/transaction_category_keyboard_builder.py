@@ -22,6 +22,7 @@ class TransactionCategoryKeyboardBuilder:
             )
 
         cancel_button = self.content_manager.get_cancel_button(screen_name)
+
         if cancel_button:
             keyboard_builder.add(
                 InlineKeyboardButton(
