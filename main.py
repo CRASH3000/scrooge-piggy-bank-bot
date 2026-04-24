@@ -2,6 +2,8 @@ import asyncio
 import os
 import logging
 
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -16,7 +18,10 @@ class ScroogeBotApplication:
     def __init__(self):
         self.bot_token = os.getenv("BOT_TOKEN")
 
-        self.bot = Bot(token=self.bot_token)
+        self.bot = Bot(
+            token=self.bot_token,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        )
         self.dispatcher = Dispatcher(storage=MemoryStorage())
 
         self.content_manager = BotContentManager(filepath="core/lexicon.yaml")

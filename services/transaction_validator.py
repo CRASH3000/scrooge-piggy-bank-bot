@@ -37,7 +37,10 @@ class TransactionValidator:
         if amount is None:
             return False, None, "validation_error"
 
-        if amount <= 0:
+        if amount < 0:
+            return False, None, "initial_capital_must_be_positive"
+
+        if amount == 0:
             return False, None, "validation_error"
 
         return True, amount, None
